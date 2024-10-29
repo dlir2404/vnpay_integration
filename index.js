@@ -1,56 +1,14 @@
 const express = require('express');
 const querystring = require('qs');
 const crypto = require("crypto");
+const bodyParser = require('body-parser');
 const path = require('path');
+const moment = require('moment');
+const {sortObject} = require('./helper')
 
 const app = express();
-
-const dateFormat = (date) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const seconds = String(date.getSeconds()).padStart(2, '0');
-
-    return `${year}${month}${day}${hours}${minutes}${seconds}`;
-};
-
-const currentDate = new Date();
-const expireDate = new Date(currentDate);
-expireDate.setMinutes(currentDate.getMinutes() + 60);
-
-let params = {
-    vnp_Version: '2.1.0',
-    vnp_Command: 'pay',
-    vnp_TmnCode: 'ETQ61CE5',
-    vnp_Locale: 'vn',
-    vnp_CurrCode: 'VND',
-    vnp_TxnRef: dateFormat(new Date()), //system order id
-    vnp_OrderInfo: 'Dinh Linh test chuyen tien',
-    vnp_OrderType: 'bla bla',
-    vnp_Amount: '1000000',
-    vnp_ReturnUrl: 'http://localhost:3000/thankyou',
-    vnp_IpAddr: '127.0.0.1',
-    vnp_CreateDate: dateFormat(currentDate),
-    vnp_ExpireDate: dateFormat(expireDate),
-};
-
-function sortObject(obj) {
-	let sorted = {};
-	let str = [];
-	let key;
-	for (key in obj){
-		if (obj.hasOwnProperty(key)) {
-		str.push(encodeURIComponent(key));
-		}
-	}
-	str.sort();
-    for (key = 0; key < str.length; key++) {
-        sorted[str[key]] = encodeURIComponent(obj[str[key]]).replace(/%20/g, "+");
-    }
-    return sorted;
-}
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: false }));
 
 const router = express.Router();
 
@@ -58,7 +16,18 @@ router.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 })
 
-router.get('/create_payment_url', (req, res, next) => {
+router.post('/create_payment_url', (req, res, next) => {
+    let params = {
+        vnp_Version: '2.1.0',
+        vnp_Command: 'pay',
+        vnp_TmnCode: 'ETQ61CE5',
+        vnp_Locale: 'vn',
+        vnp_CurrCode: 'VND',
+        vnp_ReturnUrl: 'http://localhost:3000/thankyou',
+    };
+    
+    const currentDate = new Date();
+
     const ipAddr = req.headers['x-forwarded-for'] ||
         req.connection.remoteAddress ||
         req.socket.remoteAddress ||
@@ -68,6 +37,12 @@ router.get('/create_payment_url', (req, res, next) => {
     let vnpUrl = 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html';
 
     params['vnp_IpAddr'] = ipAddr;
+    params['vnp_TxnRef'] = moment(currentDate).format('DDHHmmss'); //order id
+    params['vnp_OrderInfo'] = req.body.content
+    params['vnp_OrderType'] = req.body.type
+    params['vnp_Amount'] = req.body.amount * 100;
+    params['vnp_CreateDate'] = moment(currentDate).format('YYYYMMDDHHmmss');
+
     params = sortObject(params);
 
     var signData = querystring.stringify(params, { encode: false });

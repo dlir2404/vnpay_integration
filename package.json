@@ -9,9 +9,11 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "body-parser": "^1.20.3",
     "config": "^3.3.12",
     "crypto": "^1.0.1",
     "dateformat": "^5.0.3",
-    "express": "^4.21.1"
+    "express": "^4.21.1",
+    "moment": "^2.30.1"
   }
 }
